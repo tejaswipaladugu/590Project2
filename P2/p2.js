@@ -24,8 +24,8 @@ let uniform_view = null;
 
 let attr_vertex = null;
 let vertex_data = [];
-const scale = 1.75;
-const size = 3;
+let size = 3;
+let count = 2;
 let plane_end_index = 0;
 let propeller_end_index = 0;
 
@@ -167,40 +167,81 @@ function allocateMemory() {
 
 function draw() {
     for (let i = 0; i < contexts.length; i++) { 
-        
-        webgl_context.uniform4f( uniform_props, 
-            radians( parseFloat( xang ) ),  
-            radians( parseFloat( yang ) ),  
-            radians(rot),  
-            parseFloat( document.getElementById("scale").value ) );
-        
-        webgl_context.uniform1f( uniform_z_translation, parseFloat( document.getElementById("ztrans").value ));
-        
-        let i = 0;
-        let j = 0;   
-        
-        webgl_context.uniform4f( uniform_color, 0.60, 0.60, 0.60, 1.0 );
 
-        for ( j=0; j<axis_index; j+=size) { 
-            webgl_context.drawArrays( webgl_context.LINE_STRIP, j, size );    
+        contexts[i].clear(contexts[i].COLOR_BUFFER_BIT | contexts[i].DEPTH_BUFFER_BIT);
+
+        let xang_apl = xang;
+        let yang_apl = yang;
+        let zang_apl = zang;
+        
+        switch (i) {
+            case 0:
+                xang_apl = 0;
+                zang_apl = 0;
+                break;
+            case 1:
+                yang_apl = 0;
+                zang_apl = 0;
+                break;
+            case 2:
+                xang_apl = 0;
+                yang_apl = 0;
+                break;
         }
+
+        contexts[i].uniform1f( uniform_z_translation, 0);
+        contexts[i].uniform4f( uniform_props, 
+            radians(xang_apl), 
+            radians(yang_apl), 
+            radians(zang_apl), 
+            1.75);
+        contexts[i].uniform4f( uniform_color, 0.60, 0.60, 0.60, 1.0 );
+
+        for (let j = 0; j < plane_end_index; j+=size) { 
+            contexts[i].drawArrays( contexts[i].LINE_STRIP, j, size );    
+        }
+
+        let k = 0;
     
-        webgl_context.uniform4f( uniform_color, 0.81, 0.81, 0.81, 1.0 ); 
-        webgl_context.drawArrays( webgl_context.TRIANGLES, 0, i+=axis_index );
-      
+        contexts[i].uniform4f( uniform_color, 0.81, 0.81, 0.81, 1.0 ); 
+        contexts[i].drawArrays( contexts[i].TRIANGLES, plane_end_index, propeller_end_index - plane_end_index );
+
+        contexts[i].uniform1f( uniform_z_translation, 0.2);
+        contexts[i].uniform4f( uniform_props, 
+            radians(xang_apl), 
+            radians(yang_apl), 
+            radians(rot), 
+            1.75);
+        contexts[i].uniform4f( uniform_color, 0.60, 0.60, 0.60, 1.0 );
+
+        for (let j = plane_end_index; j < propeller_end_index; j+=size) { 
+            contexts[i].drawArrays( contexts[i].LINE_STRIP, j, size );    
+        }
+
+        k = plane_end_index;
+
+        contexts[i].uniform4f( uniform_color, 0.81, 0.81, 0.81, 1.0 ); 
+        contexts[i].drawArrays( contexts[i].TRIANGLES, 0, k+=propeller_end_index );
+
+        contexts[i].uniform1f( uniform_z_translation, 0);
+        contexts[i].uniform4f( uniform_props, 
+            radians(xang_apl), 
+            radians(yang_apl), 
+            0, 
+            1.75);
        
-        webgl_context.uniform4f( uniform_color, 1.0, 0.0, 0.0, 1.0 );
-        webgl_context.drawArrays( webgl_context.LINES, i, count);
-        i+=count;
+        contexts[i].uniform4f( uniform_color, 1.0, 0.0, 0.0, 1.0 );
+        contexts[i].drawArrays( contexts[i].LINES, propeller_end_index, count);
         
         
-        webgl_context.uniform4f( uniform_color, 0.0, 1.0, 0.0, 1.0 );
-        webgl_context.drawArrays( webgl_context.LINES, i, count);
-        i+=count;
+        contexts[i].uniform4f( uniform_color, 0.0, 1.0, 0.0, 1.0 );
+        contexts[i].drawArrays( contexts[i].LINES, propeller_end_index + count, count);
         
       
-        webgl_context.uniform4f( uniform_color, 0.0, 0.0, 1.0, 1.0 );
-        webgl_context.drawArrays( webgl_context.LINES, i, count);
+        contexts[i].uniform4f( uniform_color, 0.0, 0.0, 1.0, 1.0 );
+        contexts[i].drawArrays( contexts[i].LINES, propeller_end_index + (count * 2), count);
+
+        rot = (rot + 5) % 360;
         
     }
 }
