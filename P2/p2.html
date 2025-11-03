@@ -1,76 +1,107 @@
 <html>
-  <head>
-    <link rel="stylesheet" href="p2.css" />
-    <script
-      src="https://www.cs.unm.edu/~angel/WebGL/7E/Common/initShaders.js"
-      defer
-    ></script>
-    <script
-      src="https://www.cs.unm.edu/~angel/WebGL/7E/Common/MV.js"
-      defer
-    ></script>
-    <script
-      src="models.js"
-      defer
-    ></script>
-    <script src="p2.js" defer></script>
-  </head>
-  <body>
-    <div id="container">
-      <div class="app">
-        <div class="title">Flight Simulator</div>
-        <div class="labels">
-          <span class="yaw">Yaw</span>
-          <span class="pitch">Pitch</span>
-          <span class="roll">Roll</span>
-        </div>
-        <!-- end label -->
-        <div class="planes">
-          <canvas id="xz"></canvas>
-          <canvas id="yz"></canvas>
-          <canvas id="xy"></canvas>
-        </div>
-        <!-- end mission -->
-        <div class="sim">
-          <canvas id="xyz"></canvas>
-          <div class="control">
-            <ul>
-              <li><button type="button" id="roll-left"></button></li>
-              <li><button type="button" id="pitch-up"></button></li>
-              <li><button type="button" id="roll-right"></button></li>
-            </ul>
-            <ul>
-              <li><button type="button" id="yaw-left"></button></li>
-              <li><button type="button" id="pitch-down"></button></li>
-              <li><button type="button" id="yaw-right"></button></li>
-            </ul>
-            <ul>
-              <li><button type="button" class="blank"></button></li>
-              <li><button type="button" id="reset"></button></li>
-              <li><button type="button" class="blank"></button></li>
-            </ul>
-          </div>
-          <!-- end control -->
-        </div>
-        <!-- end sim -->
+
+<head>
+  <link rel="stylesheet" href="p2.css" />
+  <script src="https://www.cs.unm.edu/~angel/WebGL/7E/Common/initShaders.js" defer></script>
+  <script src="https://www.cs.unm.edu/~angel/WebGL/7E/Common/MV.js" defer></script>
+  <script src="models.js" defer></script>
+  <script src="p2.js" defer></script>
+</head>
+
+<body>
+  <div id="container">
+    <div class="app">
+      <div class="title">Flight Simulator</div>
+      <div class="labels">
+        <span class="yaw">Yaw</span>
+        <span class="pitch">Pitch</span>
+        <span class="roll">Roll</span>
       </div>
-      <!-- end app -->
+      <!-- end label -->
+      <div class="planes">
+        <canvas id="xz"></canvas>
+        <canvas id="yz"></canvas>
+        <canvas id="xy"></canvas>
+      </div>
+      <!-- end mission -->
+      <div class="sim">
+        <canvas id="xyz"></canvas>
+        <div class="control">
+          <ul>
+            <li><button type="button" id="roll-left"></button></li>
+            <li><button type="button" id="pitch-up"></button></li>
+            <li><button type="button" id="roll-right"></button></li>
+          </ul>
+          <ul>
+            <li><button type="button" id="yaw-left"></button></li>
+            <li><button type="button" id="pitch-down"></button></li>
+            <li><button type="button" id="yaw-right"></button></li>
+          </ul>
+          <ul>
+            <li><button type="button" class="blank"></button></li>
+            <li><button type="button" id="reset"></button></li>
+            <li><button type="button" class="blank"></button></li>
+          </ul>
+        </div>
+        <!-- end control -->
+      </div>
+      <!-- end sim -->
     </div>
-    <!-- end containter -->
-  </body>
+    <!-- end app -->
+  </div>
+  <!-- end containter -->
+</body>
 
-  <script id="vertex-shader" type="x-shader/x-vertex">
+<script id="vertex-shader" type="x-shader/x-vertex">
 
-    // Complete the GLSL program
+    attribute vec4 vertex;
+    uniform vec4 props; // [ xang, yang, zang, scale ]
+    uniform mat4 View;
+    uniform float z_translation;
 
     void main() {
 
+    float s_x = sin( props[0] );
+    float c_x = cos( props[0] );
+        
+    mat4 Rx = mat4( 1.0, 0.0, 0.0, 0.0,
+                    0.0, c_x, s_x, 0.0,
+                    0.0, -s_x, c_x, 0.0,
+                    0.0, 0.0, 0.0, 1.0 );
+    
+    float s_y = sin( props[1] );
+    float c_y = cos( props[1] );
+        
+    mat4 Ry = mat4( c_y, 0.0, -s_y, 0.0,
+                    0.0, 1.0, 0.0, 0.0,
+                    s_y, 0.0, c_y, 0.0,
+                    0.0, 0.0, 0.0, 1.0 );
 
+    float s_z = sin( props[2] );
+    float c_z = cos( props[2] );
+    
+    mat4 Rz = mat4( c_z, s_z, 0.0, 0.0,
+                    -s_z, c_z, 0.0, 0.0,
+                    0.0, 0.0, 1.0, 0.0,
+                    0.0, 0.0, 0.0, 1.0 );
+                   
+    mat4 S = mat4(  props[3], 0.0, 0.0, 0.0,
+                    0.0, props[3], 0.0, 0.0,
+                    0.0, 0.0, props[3], 0.0,
+                    0.0, 0.0, 0.0, 1.0 );
+                      
+    mat4 Tz = mat4( 1.0, 0.0, 0.0, 0.0,
+                    0.0, 1.0, 0.0, 0.0,
+                    0.0, 0.0, 1.0, 0.0,
+                    0.0, 0.0, z_translation, 1.0 );
+        
+    mat4 Model = S*Rx*Ry*Tz*Rz;
+    gl_Position = View*Model*vertex;
 
     }
   </script>
 
-  <script id="fragment-shader" type="x-shader/x-fragment">
+<script id="fragment-shader" type="x-shader/x-fragment">
 
     precision lowp float;
 
@@ -80,4 +111,5 @@
         gl_FragColor = color;
     }
   </script>
+
 </html>
