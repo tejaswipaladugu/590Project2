@@ -1,28 +1,32 @@
 console.clear();
 
+// ----------------------------------------------
+// Defining variables
+// ----------------------------------------------
+
+// Arrays for canvases + contexts
+
 let canvases = ['xz', 'yz', 'xy', 'xyz']
 let contexts = [];
 
+// Virtual cameras
+
 let at = vec3(0.0, 0.0, 0.0);
 
-let xz_up = vec3(0.0, 0.0, -1.0);
+let xz_up = vec3(0.0, 0.0, 1.0);
 let yz_up = vec3(0.0, 1.0, 0.0);
 let xy_up = vec3(0.0, 1.0, 0.0);
-let xyz_up = vec3(0.0, 0.5, 0.0);
+let xyz_up = vec3(0.0, 1.0, 0.0);
 
-let xz_eye = vec3(0.0, 0.5, 0.0);
-let yz_eye = vec3(0.5, 0.0, 0.0);
-let xy_eye = vec3(0.0, 0.0, 0.5);
-let xyz_eye = vec3(-0.15, -0.15, 0.35);
+let xz_eye = vec3(0.0, -0.5, 0.0);
+let yz_eye = vec3(0.0, 0.0, 0.5);
+let xy_eye = vec3(0.5, 0.0, 0.0);
+let xyz_eye = vec3(0.0, 0.0, 0.5);
 
 let viewMatrices = [lookAt(xz_eye, at, xz_up), lookAt(yz_eye, at, yz_up), lookAt(xy_eye, at, xy_up), lookAt(xyz_eye, at, xyz_up)]
 
-let uniform_props = null;
-let uniform_color = null;
-let uniform_z_translation = null;
-let uniform_view = null;
+// Misc
 
-let attr_vertex = null;
 let vertex_data = [];
 let size = 3;
 let count = 2;
@@ -104,6 +108,8 @@ document.addEventListener('mousedown', function (event) {
 function createVertexData() {
 
     let row = 0;
+
+    // Adding from plane model
     
     for ( let i=0; i<Fpl.length; i++ ) {
         
@@ -115,6 +121,8 @@ function createVertexData() {
     
     plane_end_index = vertex_data.length;
 
+    // Adding from propeller model
+
     for ( let i=0; i<Fpp.length; i++ ) {
         
         vertex_data[row++] = Vpp[ Fpp[i][0] ];
@@ -123,7 +131,10 @@ function createVertexData() {
         
     }
 
+
     propeller_end_index = vertex_data.length;
+    
+    // Adding axis data
     
     for ( let i=0; i<A.length; i++ ) {
          vertex_data[row++] = A[i];
@@ -132,43 +143,60 @@ function createVertexData() {
 }
 
 function configure() {
+
+    // For loop to iterate through all four canvas
+
     for (let i = 0; i < canvases.length; i++) {
-        canvas = document.getElementById(canvases[i]);
+        let canvas = document.getElementById(canvases[i]);
     
-        webgl_context = canvas.getContext( "webgl" );
-        program = initShaders( webgl_context, "vertex-shader", "fragment-shader" );
-        webgl_context.useProgram( program );
+        let gl = canvas.getContext( "webgl" );
+        let program = initShaders( gl, "vertex-shader", "fragment-shader" );
+        gl.useProgram( program );
     
-        webgl_context.viewport( 0, 0, canvas.width, canvas.height );
-        webgl_context.enable( webgl_context.DEPTH_TEST );
-       
-        attr_vertex = webgl_context.getAttribLocation( program, "vertex" );
+        gl.viewport( 0, 0, canvas.width, canvas.height );
+        gl.enable( gl.DEPTH_TEST );
 
-        uniform_props = webgl_context.getUniformLocation( program, "props" );
-        uniform_color = webgl_context.getUniformLocation( program, "color" );
-        uniform_view = webgl_context.getUniformLocation( program, "View");
-        uniform_z_translation = webgl_context.getUniformLocation( program, "z_translation");
+        // Object to store all info necessary for each context
 
-        webgl_context.uniformMatrix4fv(uniform_view, false, flatten(viewMatrices[i]));
+        let context = {
+            gl: gl,
+            program: program,
+            attr_vertex: gl.getAttribLocation( program, "vertex" ),
+            uniform_props: gl.getUniformLocation( program, "props" ),
+            uniform_color: gl.getUniformLocation( program, "color" ),
+            uniform_view: gl.getUniformLocation( program, "View"),
+            uniform_z_translation: gl.getUniformLocation( program, "z_translation")
+        };
 
-        contexts.push(webgl_context);
+        gl.uniformMatrix4fv(context.uniform_view, false, flatten(viewMatrices[i]));
+
+        // Adding context to contexts array
+
+        contexts.push(context);
     }
 }
 
 function allocateMemory() {
+
+    // For loop to allocate memory for each context
+
     for (let i = 0; i < contexts.length; i++) {
-        let buffer_id = contexts[i].createBuffer();
-        contexts[i].bindBuffer( contexts[i].ARRAY_BUFFER, buffer_id );
-        contexts[i].vertexAttribPointer( attr_vertex, size, contexts[i].FLOAT, false, 0, 0 );
-        contexts[i].enableVertexAttribArray( attr_vertex );
-        contexts[i].bufferData( contexts[i].ARRAY_BUFFER, flatten(vertex_data), contexts[i].STATIC_DRAW );
+        let buffer_id = contexts[i].gl.createBuffer();
+        contexts[i].gl.bindBuffer( contexts[i].gl.ARRAY_BUFFER, buffer_id );
+        contexts[i].gl.vertexAttribPointer( contexts[i].gl.attr_vertex, size, contexts[i].gl.FLOAT, false, 0, 0 );
+        contexts[i].gl.enableVertexAttribArray( contexts[i].gl.attr_vertex );
+        contexts[i].gl.bufferData( contexts[i].gl.ARRAY_BUFFER, flatten(vertex_data), contexts[i].gl.STATIC_DRAW );
     }   
 }
 
 function draw() {
-    for (let i = 0; i < contexts.length; i++) { 
 
-        contexts[i].clear(contexts[i].COLOR_BUFFER_BIT | contexts[i].DEPTH_BUFFER_BIT);
+    // For each context...
+
+    for (let i = 0; i < contexts.length; i++) {
+        
+        // Deciding which rotations are applied based on the canvas context
+        // Creating copies to not override 
 
         let xang_apl = xang;
         let yang_apl = yang;
@@ -189,59 +217,75 @@ function draw() {
                 break;
         }
 
-        contexts[i].uniform1f( uniform_z_translation, 0);
-        contexts[i].uniform4f( uniform_props, 
+        //Drawing plane model
+
+        contexts[i].gl.uniform1f( contexts[i].uniform_z_translation, 0);
+        contexts[i].gl.uniform4f( contexts[i].uniform_props, 
             radians(xang_apl), 
             radians(yang_apl), 
             radians(zang_apl), 
             1.75);
-        contexts[i].uniform4f( uniform_color, 0.60, 0.60, 0.60, 1.0 );
+        contexts[i].gl.uniform4f( contexts[i].uniform_color, 0.60, 0.60, 0.60, 1.0 );
+
+        //Wireframe
 
         for (let j = 0; j < plane_end_index; j+=size) { 
-            contexts[i].drawArrays( contexts[i].LINE_STRIP, j, size );    
+            contexts[i].gl.drawArrays( contexts[i].gl.LINE_STRIP, j, size );    
         }
+
+        //Faces
 
         let k = 0;
     
-        contexts[i].uniform4f( uniform_color, 0.81, 0.81, 0.81, 1.0 ); 
-        contexts[i].drawArrays( contexts[i].TRIANGLES, plane_end_index, propeller_end_index - plane_end_index );
+        contexts[i].gl.uniform4f( contexts[i].uniform_color, 0.81, 0.81, 0.81, 1.0 ); 
+        contexts[i].gl.drawArrays( contexts[i].gl.TRIANGLES, 0, plane_end_index );
 
-        contexts[i].uniform1f( uniform_z_translation, 0.2);
-        contexts[i].uniform4f( uniform_props, 
+        //Drawing propeller model (with rotation for propeller)
+
+        contexts[i].gl.uniform1f( contexts[i].uniform_z_translation, -0.37);
+        contexts[i].gl.uniform4f( contexts[i].uniform_props, 
             radians(xang_apl), 
             radians(yang_apl), 
             radians(rot), 
             1.75);
-        contexts[i].uniform4f( uniform_color, 0.60, 0.60, 0.60, 1.0 );
+        contexts[i].gl.uniform4f( contexts[i].uniform_color, 0.60, 0.60, 0.60, 1.0 );
+
+        //Wireframe
 
         for (let j = plane_end_index; j < propeller_end_index; j+=size) { 
-            contexts[i].drawArrays( contexts[i].LINE_STRIP, j, size );    
+            contexts[i].gl.drawArrays( contexts[i].gl.LINE_STRIP, j, size );    
         }
+
+        //Faces
 
         k = plane_end_index;
 
-        contexts[i].uniform4f( uniform_color, 0.81, 0.81, 0.81, 1.0 ); 
-        contexts[i].drawArrays( contexts[i].TRIANGLES, 0, k+=propeller_end_index );
+        contexts[i].gl.uniform4f( contexts[i].uniform_color, 0.81, 0.81, 0.81, 1.0 ); 
+        contexts[i].gl.drawArrays( contexts[i].gl.TRIANGLES, plane_end_index, propeller_end_index - plane_end_index );
 
-        contexts[i].uniform1f( uniform_z_translation, 0);
-        contexts[i].uniform4f( uniform_props, 
+        //Drawing axes
+
+        contexts[i].gl.uniform1f( contexts[i].uniform_z_translation, 0);
+        contexts[i].gl.uniform4f( contexts[i].uniform_props, 
             radians(xang_apl), 
             radians(yang_apl), 
             0, 
             1.75);
        
-        contexts[i].uniform4f( uniform_color, 1.0, 0.0, 0.0, 1.0 );
-        contexts[i].drawArrays( contexts[i].LINES, propeller_end_index, count);
+        contexts[i].gl.uniform4f( contexts[i].uniform_color, 1.0, 0.0, 0.0, 1.0 );
+        contexts[i].gl.drawArrays( contexts[i].gl.LINES, propeller_end_index, count);
         
         
-        contexts[i].uniform4f( uniform_color, 0.0, 1.0, 0.0, 1.0 );
-        contexts[i].drawArrays( contexts[i].LINES, propeller_end_index + count, count);
+        contexts[i].gl.uniform4f( contexts[i].uniform_color, 0.0, 1.0, 0.0, 1.0 );
+        contexts[i].gl.drawArrays( contexts[i].gl.LINES, propeller_end_index + count, count);
         
       
-        contexts[i].uniform4f( uniform_color, 0.0, 0.0, 1.0, 1.0 );
-        contexts[i].drawArrays( contexts[i].LINES, propeller_end_index + (count * 2), count);
+        contexts[i].gl.uniform4f( contexts[i].uniform_color, 0.0, 0.0, 1.0, 1.0 );
+        contexts[i].gl.drawArrays( contexts[i].gl.LINES, propeller_end_index + (count * 2), count);
 
-        rot = (rot + 5) % 360;
+        //Incrementing rotation on every draw
+
+        rot = (rot + rot_inc) % 360;
         
     }
 }
